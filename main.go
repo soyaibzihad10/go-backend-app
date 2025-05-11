@@ -1,44 +1,58 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
 )
 
-type homeHandler struct {
+// Home Route
+func HomeHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "🏠 Home Page")
 }
 
-func (hh homeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Welcome!"))
+// About Route
+func AboutHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "ℹ️ This is the About Page")
 }
 
-func aboutHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("This is the about page."))
+// Hello with query param ?name=Soyaib
+func HelloHandler(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		name = "Guest"
+	}
+	fmt.Fprintf(w, "👋 Hello, %s!\n", name)
+}
+
+func JsonHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	data := map[string]string{
+		"message": "This is a JSON response",
+	}
+	// Encoding the struct to JSON and writing the response
+	json.NewEncoder(w).Encode(data)
+}
+
+// Path param: /users/{id}
+func UserHandler(w http.ResponseWriter, r *http.Request) {
+	urlVars := mux.Vars(r)
+	userID := urlVars["id"]
+	fmt.Println(w, "You requested user ID:\n", userID)
 }
 
 func main() {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/", homeHandler)
+	r.HandleFunc("/", HomeHandler).Methods("GET")
+	r.HandleFunc("/about", AboutHandler).Methods("GET")
+	r.HandleFunc("/hello", HelloHandler).Methods("GET")
+	r.HandleFunc("/api/json", JsonHandler).Methods("GET")
+	r.HandleFunc("/users/{id}", UserHandler).Methods("GET")
 
-	/*
-		/books/all এবং /books/{isbn} এই দুইটি route একে অপরের সঙ্গে conflict করতে পারে path matching এর সময়।
-		এখন, ইউজার যদি ব্রাউজারে /books/all হিট করে...
-
-		👉 রাউটার কীভাবে জানবে যে এটা all নামে একটি ফিক্সড রাউট, নাকি এটি {isbn} নামে কোনো স্ট্রিং ভ্যালু?
-		
-		Soulution: Go-এর gorilla/mux রাউটার উপরের নিয়মে কাজ করে:
-		It matches in order from top to bottom.
-	*/
-
-	booksSSubR := r.PathPrefix("/books").Subrouter()
-	booksSubR.HandleFunc("/all", AllHandler).Methods(http.MethodGet)
-    booksSubR.HandleFunc("/{isbn}", IspnHandler).Methods(http.MethodGet)
-    booksSubR.HandleFunc("/new", NewHandler).Methods(http.MethodPost)
-    booksSubR.HandleFunc("/update", UpdateHandler).Methods(http.MethodPut)
-    booksSubR.HandleFunc("/delete/{isbn}", DeleteIspnHandler).Methods(http.MethodDelete)
-
-    log.Fatal(http.ListenAndServe(":8090", r))
+	fmt.Println("Server is running on http://localhost:8080")
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
