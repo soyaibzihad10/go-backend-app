@@ -5,9 +5,46 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 )
+
+// User struct (Go ↔ JSON)
+type User struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+func RegisterHandler(w http.ResponseWriter, r *http.Request) {
+	var user User
+
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		http.Error(w, "❌ Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Simple validation
+	if strings.TrimSpace(user.Name) == "" || strings.TrimSpace(user.Email) == "" {
+		http.Error(w, "❌ Name and Email are required", http.StatusBadRequest)
+		return
+	}
+
+	if !strings.Contains(user.Email, "@") {
+		http.Error(w, "❌ Invalid email format", http.StatusBadRequest)
+		return
+	}
+
+	// Success
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "✅ Registration successful",
+		"name":    user.Name,
+		"email":   user.Email,
+	})
+}
 
 // Home Route
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
@@ -52,6 +89,7 @@ func main() {
 	r.HandleFunc("/hello", HelloHandler).Methods("GET")
 	r.HandleFunc("/api/json", JsonHandler).Methods("GET")
 	r.HandleFunc("/users/{id}", UserHandler).Methods("GET")
+	r.HandleFunc("/register", RegisterHandler).Methods("POST")
 
 	fmt.Println("Server is running on http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", r))
